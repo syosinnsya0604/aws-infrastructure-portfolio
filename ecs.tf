@@ -37,6 +37,24 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "ecs_secrets" {
+  name = "aws-infra-portfolio-ecs-secrets"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_db_instance.main.master_user_secret[0].secret_arn
+      }
+    ]
+  })
+}
+
 resource "aws_ecs_task_definition" "app" {
   family                   = "aws-infra-portfolio-app"
   requires_compatibilities = ["FARGATE"]
@@ -59,8 +77,35 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
 
+      environment = [
+        {
+          name  = "DB_HOST"
+          value = aws_db_instance.main.address
+        },
+        {
+          name  = "DB_PORT"
+          value = "5432"
+        },
+        {
+          name  = "DB_NAME"
+          value = "equipmentdb"
+        }
+      ]
+
+      secrets = [
+        {
+          name      = "DB_USER"
+          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:username::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:password::"
+        }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs"
+
         options = {
           awslogs-group         = aws_cloudwatch_log_group.ecs.name
           awslogs-region        = "ap-northeast-1"
@@ -96,6 +141,7 @@ resource "aws_ecs_service" "app" {
 
   depends_on = [
     aws_iam_role_policy_attachment.ecs_task_execution,
+    aws_iam_role_policy.ecs_secrets,
     aws_route_table_association.app_1a,
     aws_route_table_association.app_1c,
     aws_lb_listener.http
