@@ -1,3 +1,7 @@
+variable "allowed_ipv4_cidr" {
+  description = "IPv4 CIDR allowed to access the public ALB during portfolio verification"
+  type        = string
+}
 # ALB Security Group
 resource "aws_security_group" "alb" {
   name        = "aws-infra-portfolio-alb-sg"
@@ -7,15 +11,6 @@ resource "aws_security_group" "alb" {
   tags = {
     Name = "aws-infra-portfolio-alb-sg"
   }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "alb_https" {
-  security_group_id = aws_security_group.alb.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-  from_port   = 443
-  ip_protocol = "tcp"
-  to_port     = 443
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_all" {
@@ -80,7 +75,7 @@ resource "aws_vpc_security_group_egress_rule" "rds_all" {
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
 
-  cidr_ipv4   = "0.0.0.0/0"
+  cidr_ipv4   = var.allowed_ipv4_cidr
   from_port   = 80
   ip_protocol = "tcp"
   to_port     = 80

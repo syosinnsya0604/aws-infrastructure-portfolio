@@ -71,6 +71,10 @@ flowchart TB
 
 ALBはPublic Subnetに配置し、ECS/FargateタスクはPublic IPを持たないPrivate App Subnetで実行しています。アプリケーションから外部AWSサービスなどへの通信はNAT Gatewayを経由します。
 
+ポートフォリオの検証環境ではALBをPublic ALBとして構築していますが、HTTP/80へのアクセス元はTerraform変数 `allowed_ipv4_cidr` で指定した検証元IPv4アドレス（/32）のみに制限しています。`0.0.0.0/0` からのHTTPアクセスは許可していません。
+
+想定要件の「初期段階では社外アクセスなし」を本番環境で満たす場合は、社内ネットワークとAWSをSite-to-Site VPN等で接続し、Internal ALBを利用する構成を検討します。また、現在は検証用としてHTTPを使用しているため、本番化時には独自ドメインとACM証明書を用意し、HTTPS Listenerへ移行することを前提としています。
+
 RDSはDB Subnet Group内に配置し、`publicly_accessible = false` としています。Security GroupではECSからPostgreSQLのTCP/5432への通信のみを許可しています。
 
 現在のポートフォリオ環境ではコストを考慮し、RDSはSingle-AZ、ECSは通常1タスクで構成しています。一方、サブネットはap-northeast-1a / 1cの2AZへ分離し、将来的な冗長化やスケール構成へ拡張できるネットワーク構成としています。
