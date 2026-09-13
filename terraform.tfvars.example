@@ -1,0 +1,5 @@
+# Copy this file to terraform.tfvars and replace the example values.
+# terraform.tfvars is ignored by Git and must not be committed.
+
+alert_email       = "your-email@example.com"
+allowed_ipv4_cidr = "203.0.113.10/32"

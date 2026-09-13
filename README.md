@@ -232,6 +232,21 @@ HTTP Status: 200
 
 未実装項目を単に追加するのではなく、可用性、セキュリティ、運用負荷、コストの要件に応じて採用を判断する方針としています。
 
+## 再構築時の変数設定
+
+Terraformで環境を再構築する場合は、公開用サンプル `terraform.tfvars.example` をコピーして `terraform.tfvars` を作成し、通知先メールアドレスと検証元IPv4 CIDRを設定します。
+
+```powershell
+Copy-Item terraform.tfvars.example terraform.tfvars
+```
+
+```hcl
+alert_email       = "your-email@example.com"
+allowed_ipv4_cidr = "203.0.113.10/32"
+```
+
+実際の `terraform.tfvars` は `.gitignore` の対象としており、GitHubへ公開しません。
+
 ## 検証環境の終了
 
 正常系・障害系・セキュリティ修正後の動作確認と証跡取得を完了した後、AWSリソースは `terraform destroy` で削除しました。
