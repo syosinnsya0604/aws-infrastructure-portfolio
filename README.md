@@ -1,5 +1,108 @@
 # aws-infrastructure-portfolio
 
+## 概要
+
+複数拠点を持つ中小企業の「設備・障害・点検管理Webサービス」を想定し、AWS上にインフラ環境を設計・構築したポートフォリオです。
+
+単にAWSリソースを作成するだけではなく、要件整理、ネットワーク設計、コンテナ実行環境、データベース、監視・通知、IaC、CI、障害試験・復旧までを一連のインフラ構築業務として実施しました。
+
+## 想定要件
+
+想定企業の主な要件は以下です。
+
+* 社員約120名、将来的に約200名
+* 最大同時利用者：約50名
+* 本社および3工場からWebサービスを利用
+* 初期段階では社外からのアクセスなし
+* 平日7:00〜20:00を主な利用時間とする
+* IT担当者2名で運用
+* 24時間有人監視は行わない
+* 重大障害のRTO（目標復旧時間）：4時間
+* RPO（目標復旧時点）：24時間
+* DBをインターネットへ直接公開しない
+* 異常発生時に通知できること
+* ログを保存し、障害原因を調査できること
+* IaC（Infrastructure as Code：インフラ構成のコード管理）によって環境を再現できること
+
+## AWS構成
+
+```text
+Internet
+   |
+   v
+Application Load Balancer
+   |
+   v
+ECS / Fargate
+   |
+   | TCP 5432
+   v
+Amazon RDS
+(PostgreSQL)
+
+ECS / ALB
+   |
+   v
+CloudWatch
+   |
+   v
+SNS
+   |
+   v
+Email notification
+```
+
+アプリケーションはECS/Fargate上のDockerコンテナとして実行し、ALB（Application Load Balancer：負荷分散装置）からアクセスします。
+
+RDSはプライベート側に配置し、Security GroupによってECSからのTCP/5432通信のみを許可しています。
+
+## 使用技術
+
+| 分類              | 技術・サービス                                     | 用途                    |
+| --------------- | ------------------------------------------- | --------------------- |
+| Cloud           | AWS                                         | インフラ実行基盤              |
+| Network         | VPC / Subnet / NAT Gateway / Security Group | ネットワーク分離・通信制御         |
+| Load Balancer   | Application Load Balancer                   | HTTPアクセスの受付・ヘルスチェック   |
+| Container       | ECS / Fargate                               | Dockerコンテナの実行         |
+| Database        | Amazon RDS for PostgreSQL                   | アプリケーションデータ保存         |
+| Monitoring      | Amazon CloudWatch                           | ログ・メトリクス・アラーム         |
+| Notification    | Amazon SNS                                  | 障害通知                  |
+| IaC             | Terraform                                   | AWSインフラのコード化・再構築      |
+| Container       | Docker                                      | アプリケーションのコンテナ化        |
+| CI              | GitHub Actions                              | push時のDockerイメージビルド確認 |
+| Version Control | Git / GitHub                                | ソースコード・構成管理           |
+
+## 設計上のポイント
+
+### ネットワーク分離
+
+ALB、ECS、RDSの役割に応じてSecurity Groupを分離しました。
+
+特にRDSではインターネットからの直接接続を許可せず、ECSのSecurity GroupからTCP/5432への通信のみを許可しています。
+
+### コンテナ実行環境
+
+アプリケーション実行基盤にはECS/Fargateを採用しました。
+
+EC2インスタンス自体の管理を不要にし、コンテナ単位でアプリケーションを実行できる構成としています。
+
+### IaC
+
+AWSリソースはTerraformで管理しています。
+
+手動変更によってAWS環境とTerraformコードに差分が発生した場合も、`terraform plan` によってドリフト（実環境とコードとの差分）を確認し、コードで定義した状態へ復旧できることを障害試験で確認しました。
+
+### 監視・通知
+
+CloudWatchによってアプリケーションログとALBの状態を確認できるようにし、CloudWatch AlarmとSNSを利用して異常をメール通知できる構成としました。
+
+### CI
+
+GitHub Actionsを利用し、GitHubへのpushを契機としてDockerイメージをビルドするCI（Continuous Integration：継続的インテグレーション）を構築しました。
+
+これにより、Dockerfileやアプリケーションの変更後にコンテナイメージを正常に作成できるか自動確認できます。
+
+
 ## 障害試験：RDS接続障害と復旧
 
 ### 目的
