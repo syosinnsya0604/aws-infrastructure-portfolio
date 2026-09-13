@@ -1,4 +1,4 @@
-# aws-infrastructure-portfolio
+﻿# aws-infrastructure-portfolio
 
 ## 概要
 
@@ -26,36 +26,54 @@
 
 ## AWS構成
 
-```text
-Internet
-   |
-   v
-Application Load Balancer
-   |
-   v
-ECS / Fargate
-   |
-   | TCP 5432
-   v
-Amazon RDS
-(PostgreSQL)
+```mermaid
+flowchart TB
+    User[利用者 / Browser]
+    Internet[Internet]
 
-ECS / ALB
-   |
-   v
-CloudWatch
-   |
-   v
-SNS
-   |
-   v
-Email notification
+    subgraph AWS[AWS / ap-northeast-1]
+        subgraph VPC[VPC 10.0.0.0/16]
+
+            subgraph Public[Public Subnets]
+                ALB[Application Load Balancer]
+                NAT[NAT Gateway]
+            end
+
+            subgraph App[Private App Subnets - 1a / 1c]
+                ECS[ECS / Fargate<br/>Docker Application<br/>1 Task]
+            end
+
+            subgraph DB[DB Subnets - 1a / 1c]
+                RDS[(Amazon RDS<br/>PostgreSQL<br/>Single-AZ)]
+            end
+        end
+
+        ECR[Amazon ECR]
+        SM[AWS Secrets Manager]
+        CW[CloudWatch]
+        SNS[Amazon SNS]
+    end
+
+    User --> Internet
+    Internet --> ALB
+    ALB -->|HTTP / Health Check| ECS
+    ECS -->|TCP 5432| RDS
+
+    ECR -->|Container Image| ECS
+    SM -->|DB Credentials| ECS
+
+    ECS -->|Outbound| NAT
+    ECS -->|Application Logs| CW
+    ALB -->|Metrics| CW
+    CW --> SNS
+    SNS --> Mail[Email Notification]
 ```
 
-アプリケーションはECS/Fargate上のDockerコンテナとして実行し、ALB（Application Load Balancer：負荷分散装置）からアクセスします。
+ALBはPublic Subnetに配置し、ECS/FargateタスクはPublic IPを持たないPrivate App Subnetで実行しています。アプリケーションから外部AWSサービスなどへの通信はNAT Gatewayを経由します。
 
-RDSはプライベート側に配置し、Security GroupによってECSからのTCP/5432通信のみを許可しています。
+RDSはDB Subnet Group内に配置し、`publicly_accessible = false` としています。Security GroupではECSからPostgreSQLのTCP/5432への通信のみを許可しています。
 
+現在のポートフォリオ環境ではコストを考慮し、RDSはSingle-AZ、ECSは通常1タスクで構成しています。一方、サブネットはap-northeast-1a / 1cの2AZへ分離し、将来的な冗長化やスケール構成へ拡張できるネットワーク構成としています。
 ## 使用技術
 
 | 分類              | 技術・サービス                                     | 用途                    |
@@ -65,6 +83,8 @@ RDSはプライベート側に配置し、Security GroupによってECSからの
 | Load Balancer   | Application Load Balancer                   | HTTPアクセスの受付・ヘルスチェック   |
 | Container       | ECS / Fargate                               | Dockerコンテナの実行         |
 | Database        | Amazon RDS for PostgreSQL                   | アプリケーションデータ保存         |
+| Registry         | Amazon ECR                                   | Dockerイメージの保存          |
+| Secrets          | AWS Secrets Manager                       | RDS認証情報の管理             |
 | Monitoring      | Amazon CloudWatch                           | ログ・メトリクス・アラーム         |
 | Notification    | Amazon SNS                                  | 障害通知                  |
 | IaC             | Terraform                                   | AWSインフラのコード化・再構築      |
@@ -169,3 +189,4 @@ HTTP Status: 200
 障害の発生から原因調査、IaC（Infrastructure as Code：インフラ構成のコード管理）による設定復旧、ECSサービスの復旧、アプリケーションとDBの正常性確認までの一連の障害対応を実施できた。
 
 また、DB接続障害時にアプリケーションの起動自体が失敗する設計上の課題も確認できたため、今後の改善点としてDB接続タイムアウトや起動処理の分離を検討する。
+
