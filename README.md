@@ -1,4 +1,4 @@
-﻿# aws-infrastructure-portfolio
+# aws-infrastructure-portfolio
 
 ## 概要
 
@@ -74,6 +74,7 @@ ALBはPublic Subnetに配置し、ECS/FargateタスクはPublic IPを持たな�
 RDSはDB Subnet Group内に配置し、`publicly_accessible = false` としています。Security GroupではECSからPostgreSQLのTCP/5432への通信のみを許可しています。
 
 現在のポートフォリオ環境ではコストを考慮し、RDSはSingle-AZ、ECSは通常1タスクで構成しています。一方、サブネットはap-northeast-1a / 1cの2AZへ分離し、将来的な冗長化やスケール構成へ拡張できるネットワーク構成としています。
+
 ## 使用技術
 
 | 分類              | 技術・サービス                                     | 用途                    |
@@ -189,4 +190,3 @@ HTTP Status: 200
 障害の発生から原因調査、IaC（Infrastructure as Code：インフラ構成のコード管理）による設定復旧、ECSサービスの復旧、アプリケーションとDBの正常性確認までの一連の障害対応を実施できた。
 
 また、DB接続障害時にアプリケーションの起動自体が失敗する設計上の課題も確認できたため、今後の改善点としてDB接続タイムアウトや起動処理の分離を検討する。
-
